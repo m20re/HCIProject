@@ -9,7 +9,11 @@ Group project for UNO class CSCI4970
 `git clone https://github.com/m20re/HCIProject#`
 4) `cd` into the newly cloned repository and run this command to make a virtual environment.
 `python -m venv venv`
-5) Install necessary packages by running this command:
+5) Activate the virtual environment within powershell (assumes you are still in the project directory):
+`.\venv\Scripts\activate`
+6) Install necessary packages by running this command:
 `pip install -r requirements.txt`
+7) If you add more packages make sure to update requirements.txt
+`pip freeze > requirements.txt`
 
-More to be added...
+That should be it for now.
