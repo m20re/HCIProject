@@ -1,0 +1,181 @@
+/* =============================
+   Twilingo — Modern UI Styles
+   ============================= */
+
+/* CSS Variables (design tokens) */
+:root {
+  --bg: #0f1220;               /* app background */
+  --surface: rgba(255,255,255,0.06);
+  --surface-strong: rgba(255,255,255,0.12);
+  --text: #e9ecf1;             /* primary text */
+  --muted: #b7bfd1;            /* secondary text */
+  --brand: #7c5cff;            /* accent */
+  --brand-2: #2ee6a6;          /* secondary accent */
+  --error: #ff6b6b;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.35);
+  --glass: blur(10px) saturate(140%);
+}
+
+/* Reset + base */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--text);
+  background: radial-gradient(1200px 800px at 15% 10%, #1b1f36 0%, #0f1220 55%),
+              radial-gradient(800px 600px at 85% 20%, #0f1630 0%, #0f1220 60%);
+  line-height: 1.4;
+}
+
+/* App shell */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  backdrop-filter: var(--glass);
+  background: linear-gradient(180deg, rgba(15,18,32,0.7), rgba(15,18,32,0.3));
+  border-bottom: 1px solid var(--surface-strong);
+}
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.brand-badge {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+  box-shadow: var(--shadow);
+}
+
+nav a {
+  text-decoration: none;
+  color: var(--muted);
+  margin-left: 18px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: color .2s ease, background-color .2s ease;
+}
+nav a:hover { color: var(--text); background: var(--surface); }
+
+.main {
+  max-width: 1200px;
+  margin: 24px auto 56px;
+  padding: 0 24px;
+}
+
+/* Layout cards */
+.card {
+  background: var(--surface);
+  backdrop-filter: var(--glass);
+  border: 1px solid var(--surface-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card.pad {
+  padding: 18px;
+}
+
+/* Typography */
+.h1 { font-size: clamp(28px, 3.5vw, 40px); font-weight: 800; margin: 8px 0 4px; }
+.h2 { font-size: clamp(18px, 2.2vw, 22px); font-weight: 700; margin: 0 0 12px; color: var(--muted); }
+.lead { color: var(--muted); margin: 0 0 18px; }
+
+/* Controls row */
+.controls {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* from | swap | to */
+  gap: 12px;
+  align-items: center;
+}
+
+.select, .input, .btn {
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: #0f1426;
+  color: var(--text);
+  padding: 12px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s ease, background-color .15s ease, transform .05s ease;
+}
+.select:focus, .input:focus { border-color: var(--brand); background: #121834; }
+
+/* Language pickers */
+.lang-picker { display: grid; gap: 8px; }
+.lang-label { font-size: 12px; color: var(--muted); }
+select.select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(1em + 2px), calc(100% - 13px) calc(1em + 2px);
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+/* Swap button */
+.swap-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 42px; width: 42px; border-radius: 10px;
+  color: white;
+  border: none; cursor: pointer; font-weight: 700;
+  box-shadow: var(--shadow); color: #0a0c16;
+}
+.swap-btn:active { transform: scale(0.98); }
+
+/* Text areas */
+.textareas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+textarea.input {
+  min-height: 160px; resize: vertical;
+}
+.output {
+  min-height: 160px;
+  background: #0a0f20;
+  border: 1px dashed var(--surface-strong);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--muted);
+}
+
+/* Action buttons */
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.btn { cursor: pointer; }
+.btn-primary {
+  background: white;
+  color: #0a0c16; font-weight: 700;
+}
+.btn-ghost { background: transparent; border: 1px solid var(--surface-strong); color: var(--text); }
+.btn:hover { filter: brightness(1.05); }
+.btn:active { transform: translateY(1px); }
+
+/* Map */
+#map {
+  height: min(60vh, 600px);
+  min-height: 300px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--surface-strong);
+}
+
+/* Utility */
+.stack { display: grid; gap: 14px; }
+.row { display: flex; gap: 12px; align-items: center; }
+.m-0 { margin: 0; }
+.mt-1 { margin-top: 6px; }
+.mt-2 { margin-top: 12px; }
+.mt-3 { margin-top: 18px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .controls { grid-template-columns: 1fr; }
+  .textareas { grid-template-columns: 1fr; }
+}
