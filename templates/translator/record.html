@@ -1,0 +1,136 @@
+{% extends "_base.html" %}
+{% block title %}Recording Audio{% endblock %}
+
+{% block content %}
+<!-- Expose a real CSRF token to JS (reliable even if cookie is HttpOnly) -->
+<form id="csrf-form" style="display:none">{% csrf_token %}</form>
+
+<button id="rec" type="button">Start</button>
+<button id="stop" type="button" disabled>Stop & Upload</button>
+<p id="status">Idle</p>
+<pre id="result"></pre>
+
+<script>
+let mediaRecorder;
+let chunks = [];
+
+const ui = {
+  status: document.getElementById('status'),
+  result: document.getElementById('result'),
+  recBtn: document.getElementById('rec'),
+  stopBtn: document.getElementById('stop'),
+};
+
+function setStatus(msg) { ui.status.textContent = msg; }
+function show(obj) { ui.result.textContent = JSON.stringify(obj, null, 2); }
+
+function getCsrfToken() {
+  const el = document.querySelector('#csrf-form input[name="csrfmiddlewaretoken"]');
+  return el ? el.value.trim() : '';
+}
+
+async function startRecording() {
+  // Prompt for Microphone permission
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  // Gets proper MIME type depending on browser
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus'
+    : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
+
+  mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+  // Clears chunks in case a previous recording occured
+  chunks = [];
+  // Continually push new data to chunks while recording
+  mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+  mediaRecorder.onstop = handleStop;
+  mediaRecorder.start();
+}
+
+async function handleStop() {
+  if (!chunks.length) {
+    setStatus('No audio captured. Try again.');
+    return;
+  }
+
+  const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+  chunks = [];
+
+  // Refuses audio shorter than 8KB
+  if (blob.size < 8 * 1024) {
+    setStatus('Recording too short or silent, record at least 1-2 seconds');
+    return;
+  }
+
+  // Prepares API call to views
+  const fd = new FormData();
+  const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+  fd.append('audio', blob, `clip.${ext}`);
+
+  // 45s client timeout
+  const controller = new AbortController();
+  const to = setTimeout(() => controller.abort('timeout'), 45000);
+
+  setStatus('Uploading…');
+  try {
+    const resp = await fetch("{% url 'upload_audio' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: fd,
+      credentials: 'same-origin',
+      signal: controller.signal
+    });
+    clearTimeout(to);
+
+    let data;
+    try { data = await resp.json(); } catch (_) { data = null; }
+
+    if (!resp.ok) {
+      setStatus('Upload failed.');
+      show(data || { error: `${resp.status} ${resp.statusText}` });
+      return;
+    }
+
+    if (data?.code === 'NO_TRANSCRIPT') {
+      setStatus('No speech detected.');
+      show(data);
+      return;
+    }
+
+    setStatus('Done');
+    show(data);
+
+  } catch (err) {
+    clearTimeout(to);
+    const aborted = (err?.name === 'AbortError') || String(err).includes('timeout');
+    if (aborted) {
+      setStatus('Timed out waiting for server.');
+      show({ error: 'TIMEOUT', detail: String(err) });
+    } else {
+      setStatus('Unexpected error.');
+      show({ error: 'UPLOAD_ERROR', detail: String(err) });
+    }
+  }
+}
+
+ui.recBtn.onclick = async () => {
+  try {
+    await startRecording();
+    setStatus('Recording…');
+    ui.recBtn.disabled = true;
+    ui.stopBtn.disabled = false;
+  } catch (e) {
+    setStatus('Mic permission denied or unavailable.');
+    show({ error: 'MIC_ERROR', detail: String(e) });
+  }
+};
+
+ui.stopBtn.onclick = () => {
+  mediaRecorder.stop();
+  setStatus('Processing…');
+  ui.recBtn.disabled = false;
+  ui.stopBtn.disabled = true;
+};
+</script>
+{% endblock content %}

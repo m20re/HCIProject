@@ -1,4 +1,34 @@
 # HCI Project
 Used Lithium template for Django: https://github.com/wsvincent/lithium.git
 
-#
+## Prerequisites
+To convert the audio into its respective format ffmpeg is used.
+
+Download it here: https://ffmpeg.org/
+
+## How to set up the project
+1. Ensure that git is installed in your system. verify in your terminal with `git --version`
+
+2. For this project we are using Python 3.12.X, ensure it is installed with: `python3 --verion` or `py --version` on Windows.
+
+3. Clone the repository using this command: `git clone https://github.com/m20re/HCIProject.git`
+
+4. Go into the project directory `cd {project_name_here}`
+
+5. Create a new virtual environment `python3 -m venv .venv`. This will create a `.venv/` folder
+
+6. In the same directory activate the virtual environment `.venv/Scripts/activate`
+
+7. You should see `(.venv)` within the terminal.
+
+8. Install all required dependencies `pip install -r requirements.txt`
+
+9. Run this command to start the program: `python3 manage.py runserver` or `python manage.py runserver` if python3 doesn't work.
+
+10. Open the local host connection (preferably on CHROME) on any browser : `http://127.0.0.1:8000`. 
+
+11. You can terminate the program anytime with `CTRL + C` or `CMD + C`.
+
+#### Transcript Testing
+
+While the server is running go to `http://127.0.0.1:8000/translate/`. From here, you should be able to speak into the mic and get an output.
