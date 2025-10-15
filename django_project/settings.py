@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "pages",
     # New Apps
     "translator",
+    "ui",
 ]
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
