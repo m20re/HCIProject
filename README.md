@@ -23,11 +23,13 @@ Download it here: https://ffmpeg.org/
 
 8. Install all required dependencies `pip install -r requirements.txt`
 
-9. Run this command to start the program: `python3 manage.py runserver` or `python manage.py runserver` if python3 doesn't work.
+9. *Create* a new `.env` file for safety.
 
-10. Open the local host connection (preferably on CHROME) on any browser : `http://127.0.0.1:8000`. 
+10. Run this command to start the program: `python3 manage.py runserver` or `python manage.py runserver` if python3 doesn't work.
 
-11. You can terminate the program anytime with `CTRL + C` or `CMD + C`.
+11. Open the local host connection (preferably on CHROME) on any browser : `http://127.0.0.1:8000`. 
+
+12. You can terminate the program anytime with `CTRL + C` or `CMD + C`.
 
 #### Transcript Testing
 
