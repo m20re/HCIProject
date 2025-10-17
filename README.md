@@ -34,3 +34,5 @@ Download it here: https://ffmpeg.org/
 #### Transcript Testing
 
 While the server is running go to `http://127.0.0.1:8000/translate/`. From here, you should be able to speak into the mic and get an output.
+
+To see the map go to the: `http://127.0.0.1:8000/map' to access the map.
