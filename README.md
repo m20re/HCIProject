@@ -4,9 +4,7 @@ Used Lithium template for Django: https://github.com/wsvincent/lithium.git
 ## Prerequisites
 To convert the audio into its respective format ffmpeg is used.
 
-(Windows) Download it here: https://ffmpeg.org/
-- Once installed, unzip it in a convinient location.
-- Add that location within your PATH (environmental variables)
+(Windows) Run the following command within cmd: `winget install ffmpeg`
 
 (MacOS/Linux) Run the following command: `sudo apt update && sudo apt install ffmpeg`
 
