@@ -31,11 +31,13 @@ To verify is FFMPEG works, open a terminal and type `ffmpeg -version`. We are us
 
 9. *Create* a new `.env` file for safety.
 
-10. Run this command to start the program: `python3 manage.py runserver` or `python manage.py runserver` if python3 doesn't work.
+10. Apply relevant database migrations: `python manage.py migrate`
 
-11. Open the local host connection (preferably on CHROME) on any browser : `http://127.0.0.1:8000`. 
+11. Run this command to start the program: `python3 manage.py runserver` or `python manage.py runserver` if python3 doesn't work.
 
-12. You can terminate the program anytime with `CTRL + C` or `CMD + C`.
+12. Open the local host connection (preferably on CHROME) on any browser : `http://127.0.0.1:8000`. 
+
+13. You can terminate the program anytime with `CTRL + C` or `CMD + C`.
 
 #### Transcript Testing
 
