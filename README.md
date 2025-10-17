@@ -4,7 +4,13 @@ Used Lithium template for Django: https://github.com/wsvincent/lithium.git
 ## Prerequisites
 To convert the audio into its respective format ffmpeg is used.
 
-Download it here: https://ffmpeg.org/
+(Windows) Download it here: https://ffmpeg.org/
+- Once installed, unzip it in a convinient location.
+- Add that location within your PATH (environmental variables)
+
+(MacOS/Linux) Run the following command: `sudo apt update && sudo apt install ffmpeg`
+
+To verify is FFMPEG works, open a terminal and type `ffmpeg -version`. We are using version 8.0
 
 ## How to set up the project
 1. Ensure that git is installed in your system. verify in your terminal with `git --version`
@@ -35,4 +41,4 @@ Download it here: https://ffmpeg.org/
 
 While the server is running go to `http://127.0.0.1:8000/translate/`. From here, you should be able to speak into the mic and get an output.
 
-To see the map go to the: `http://127.0.0.1:8000/map' to access the map.
+To see the map go to the: `http://127.0.0.1:8000/map` to access the map.
