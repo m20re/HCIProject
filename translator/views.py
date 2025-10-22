@@ -1,7 +1,9 @@
 import os, tempfile, subprocess
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from .service_tc import transcribe_wav
+
+from translator.service_tl import translate_text
+from translator.service_tc import transcribe_wav
 
 FFMPEG_TIMEOUT_SEC = 20
 
@@ -62,6 +64,40 @@ def upload_audio(request):
     finally:
         _cleanup(src_path, wav_path)
 
+@require_POST
+async def translate_audio(request):
+    t = request.POST.get("transcript", "").strip()
+    if not t:
+        return JsonResponse(
+            {
+                "error": "NO_TRANSCRIPT",
+                "details": "No transcript was provided",
+            },
+            status=400
+        )
+    
+    # TODO: Add dropdown for language
+    dest = request.POST.get("dest", "").strip() or "es"
+    
+    # Call GoogleTrans API
+    try:
+        translated = await translate_text(t, dest=dest)
+        return JsonResponse(
+            {
+                "translation": translated,
+                "target": dest,
+            },
+            status=200
+        )
+    except Exception as e:
+        return JsonResponse(
+            {
+                "error": "TRANSLATION_FAILED",
+                "detail": str(e),
+            },
+            status=500
+        )
+
 def _cleanup(*paths):
     for p in paths:
         try:
@@ -69,3 +105,4 @@ def _cleanup(*paths):
                 os.remove(p)
         except Exception:
             pass
+
