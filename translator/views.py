@@ -84,7 +84,7 @@ async def translate_audio(request):
         translated = await translate_text(t, dest=dest)
         return JsonResponse(
             {
-                "translation": translated,
+                "Translation": translated,
                 "target": dest,
             },
             status=200
