@@ -15,18 +15,64 @@ function setTranscript(text) {
 
 function setTranslation(text) {
   const el = document.getElementById('translatedText');
-  if (el) el.textContent = text || '';
+  if (!el) {
+    console.warn('[translator.js] #translatedText not found in DOM');
+    return;
+  }
+  el.textContent = text || '';
+}
+
+function pickTranslation(payload) {
+  if (!payload) return '';
+
+  // Fast path: common flat keys (case-insensitive)
+  const flat = payload;
+  if (typeof flat.translation === 'string') return flat.translation;
+  if (typeof flat.translated === 'string') return flat.translated;
+  if (typeof flat.text === 'string') return flat.text;
+  if (typeof flat.translatedText === 'string') return flat.translatedText;
+  if (typeof flat.Translation === 'string') return flat.Translation; // capital T from some backends
+
+  // Case-insensitive scan of top-level keys as a fallback
+  for (const [k, v] of Object.entries(flat)) {
+    if (typeof v === 'string' && /^(translation|translatedtext|translated|text)$/i.test(k)) {
+      return v;
+    }
+  }
+
+  // Nested common shapes (case-insensitive)
+  const data = payload.data || payload.Data;
+  if (data) {
+    if (typeof data.translation === 'string') return data.translation;
+    if (typeof data.translatedText === 'string') return data.translatedText;
+    if (typeof data.Translation === 'string') return data.Translation;
+    for (const [k, v] of Object.entries(data)) {
+      if (typeof v === 'string' && /^(translation|translatedtext|translated|text)$/i.test(k)) return v;
+    }
+    const translations = data.translations || data.Translations;
+    if (Array.isArray(translations) && translations[0]) {
+      const t = translations[0];
+      if (typeof t.translatedText === 'string') return t.translatedText;
+      if (typeof t.Translation === 'string') return t.Translation;
+      if (typeof t.text === 'string') return t.text;
+      for (const [k, v] of Object.entries(t)) {
+        if (typeof v === 'string' && /^(translation|translatedtext|translated|text)$/i.test(k)) return v;
+      }
+    }
+  }
+
+  return '';
 }
 
 function show(data) {
   const out = document.getElementById('translatedText');
   if (!out) return;
   try {
+    const t = pickTranslation(data);
+    if (t) { setTranslation(t); return; }
+
     if (data && data.error) {
       out.textContent = `Error: ${data.error}${data.detail ? ' — ' + data.detail : ''}`;
-    } else if (data && (data.translation || data.translated || data.text)) {
-      // If someone still calls show() with a translation payload, do not lose it
-      setTranslation(data.translation || data.translated || data.text);
     } else if (data && data.transcript) {
       setTranscript(data.transcript);
     } else {
@@ -180,6 +226,7 @@ async function handleTranslate() {
     clearTimeout(to);
 
     const data = await resp.json().catch(() => null);
+    console.log('[translate] response', resp.status, data);
 
     if (!resp.ok) {
       setStatus('Translation failed.');
@@ -187,10 +234,16 @@ async function handleTranslate() {
       return;
     }
 
-    setStatus('Translation Complete');
-    setTranslation(data && (data.translation || data.translated || data.text || ''));
-    // TODO: Add more robust handling
-    transcript = null;
+    const t = pickTranslation(data);
+    if (t) {
+      setStatus('Translation Complete');
+      setTranslation(t);
+      transcript = null;
+    } else {
+      setStatus('No translation returned');
+      // fall back to show raw payload for visibility
+      show(data || { error: 'EMPTY_TRANSLATION' });
+    }
 
   } catch(err) {
     clearTimeout(to);
@@ -220,13 +273,13 @@ document.addEventListener('DOMContentLoaded', () => {
     stopBtn.disabled = true; // disabled until recording starts
     stopBtn.addEventListener('click', stopRecording);
   }
-});
 
-const clearBtn = document.getElementById('clearTextarea');
-if (clearBtn) {
-  clearBtn.addEventListener('click', () => {
-    setTranscript('');
-    setTranslation('');
-    setStatus('Ready');
-  });
-}
+  const clearBtn = document.getElementById('clearTextarea');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      setTranscript('');
+      setTranslation('');
+      setStatus('Ready');
+    });
+  }
+});
