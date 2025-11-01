@@ -7,6 +7,7 @@
   <title>Twilingo — Map</title>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="icon" href="data:,">
   {% if countriesData %}
@@ -34,7 +35,9 @@
 <main class="main stack">
   <section class="card pad stack">
     <h1 class="h1 m-0">Translate Anything</h1>
-    <p class="lead">Choose languages, type your text, and translate.</p>
+    <p class="lead">Step 1) Choose languages</p>
+    <p class="lead">Step 2) Click on "Start Translating".</p>
+    <p class="lead">Step 3) Click on "Stop" when you are ready. (You have a limit of 45seconds)</p>
 
     <!-- Language controls -->
     <div class="controls">
@@ -64,15 +67,21 @@
     </div>
 
     <!-- Text areas -->
-    <div class="textareas">
-      <textarea class="input" id="sourceText" placeholder="Type or paste text here..."></textarea>
-      <div class="output" id="translatedText">Your translation will appear here…</div>
-    </div>
+<!-- First language (source) -->
+<label class="label">Your speech (source)</label>
+<div id="transcriptText" class="textarea" style="min-height:4rem;"></div>
+
+<!-- Second language (target) -->
+<label class="label" style="margin-top:.75rem;">Translation (target)</label>
+<div id="translatedText" class="textarea" style="min-height:4rem;"></div>
 
     <div class="actions">
-      <button class="btn btn-primary" id="translateBtn">Translate</button>
+      <button class="btn btn-primary" id="translateBtn">
+        <i class="fa-solid fa-play"></i>
+        Start Translating</button>
+      <button class="btn btn-ghost" id="stopBtn">Stop</button>
       <button class="btn btn-ghost" id="clearTextarea">Clear</button>
-      <button class="btn btn-ghost" id="copyBtn">Copy</button>
+      <p id="status" class="lead" style="margin-top:.5rem">Ready</p>
     </div>
   </section>
 
@@ -172,6 +181,13 @@
 
 
 </script>
+<script>
+  window.API = {
+    uploadAudioUrl: "{% url 'upload_audio' %}",
+    translateAudioUrl: "{% url 'translate_audio' %}"
+  };
+</script>
+<script src="{% static 'translator/translator.js' %}"></script>
 
 </body>
 </html>
