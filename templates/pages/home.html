@@ -105,6 +105,12 @@ async function handleStop() {
     transcript = data?.transcript;
     show(data);
 
+    if (transcript) {
+      setTimeout(() => {
+        ui.transBtn.click();
+      }, 1000); // wait 1 second before triggering translation
+    }
+
   } catch (err) {
     clearTimeout(to);
     const aborted = (err?.name === 'AbortError') || String(err).includes('timeout');
@@ -152,7 +158,7 @@ async function handleTranslate() {
     setStatus('Translation Complete');
     show(data);
 
-    // 🔊 Automatically play translated audio if available
+    // Automatically play translated audio if available
     if (data.audio_url) {
       try {
         const audio = new Audio(data.audio_url);
@@ -160,7 +166,7 @@ async function handleTranslate() {
           .then(() => console.log("Playing translated audio"))
           .catch(err => console.error("Audio playback failed:", err));
 
-        // Also add a visible player so user can replay
+        // Also show visible player so user can replay
         ui.result.innerHTML += `
           <br><br><strong>Play Translated Audio:</strong><br>
           <audio controls src="${data.audio_url}" style="margin-top:8px; width: 100%; max-width: 400px;"></audio>
@@ -207,5 +213,12 @@ ui.stopBtn.onclick = () => {
 ui.transBtn.onclick = () => {
   handleTranslate();
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    ui.recBtn.click();
+    console.log("Auto-started recording");
+  }, 800);
+});
 </script>
 {% endblock content %}
