@@ -1,11 +1,211 @@
-{% extends '_base.html' %}
-{% load static %}
-
-{% block title %}Home page{% endblock title %}
+{% extends "_base.html" %}
+{% block title %}Recording Audio{% endblock %}
 
 {% block content %}
-<div class="pricing-header px-3 py-3 pt-md-5 pb-md-4 mx-auto text-center">
-  <img src="{% static 'images/lithium.png' %}" class="img-fluid" alt="Lithium logo"/>
-  <p class="lead">A Django starter project with batteries.</p>
-</div>
+<!-- Expose a real CSRF token to JS (reliable even if cookie is HttpOnly) -->
+<form id="csrf-form" style="display:none">{% csrf_token %}</form>
+
+<button id="rec" type="button">Start</button>
+<button id="stop" type="button" disabled>Stop & Upload</button>
+<button id="translate" type="button">Translate</button>
+<p id="status">Idle</p>
+<pre id="result"></pre>
+
+<script>
+let mediaRecorder;
+let chunks = [];
+let transcript = null;
+
+const ui = {
+  status: document.getElementById('status'),
+  result: document.getElementById('result'),
+  recBtn: document.getElementById('rec'),
+  stopBtn: document.getElementById('stop'),
+  transBtn: document.getElementById('translate'),
+};
+
+function setStatus(msg) { ui.status.textContent = msg; }
+function show(obj) {
+  // allow showing HTML if needed (e.g., audio player)
+  if (typeof obj === 'string') {
+    ui.result.innerHTML = obj;
+  } else {
+    ui.result.textContent = JSON.stringify(obj, null, 2);
+  }
+}
+
+function getCsrfToken() {
+  const el = document.querySelector('#csrf-form input[name="csrfmiddlewaretoken"]');
+  return el ? el.value.trim() : '';
+}
+
+async function startRecording() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+    ? 'audio/webm;codecs=opus'
+    : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
+
+  mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+  chunks = [];
+  mediaRecorder.ondataavailable = e => chunks.push(e.data);
+  mediaRecorder.onstop = handleStop;
+  mediaRecorder.start();
+}
+
+async function handleStop() {
+  if (!chunks.length) {
+    setStatus('No audio captured. Try again.');
+    transcript = null;
+    return;
+  }
+
+  const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+  chunks = [];
+
+  if (blob.size < 8 * 1024) {
+    setStatus('Recording too short or silent, record at least 1-2 seconds');
+    return;
+  }
+
+  const fd = new FormData();
+  const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+  fd.append('audio', blob, `clip.${ext}`);
+
+  const controller = new AbortController();
+  const to = setTimeout(() => controller.abort('timeout'), 45000);
+
+  setStatus('Uploading…');
+  try {
+    const resp = await fetch("{% url 'upload_audio' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: fd,
+      credentials: 'same-origin',
+      signal: controller.signal
+    });
+    clearTimeout(to);
+
+    let data;
+    try { data = await resp.json(); } catch (_) { data = null; }
+
+    if (!resp.ok) {
+      setStatus('Upload failed.');
+      show(data || { error: `${resp.status} ${resp.statusText}` });
+      return;
+    }
+
+    if (data?.code === 'NO_TRANSCRIPT') {
+      setStatus('No speech detected.');
+      show(data);
+      return;
+    }
+
+    setStatus('Done');
+    transcript = data?.transcript;
+    show(data);
+
+  } catch (err) {
+    clearTimeout(to);
+    const aborted = (err?.name === 'AbortError') || String(err).includes('timeout');
+    if (aborted) {
+      setStatus('Timed out waiting for server.');
+      show({ error: 'TIMEOUT', detail: String(err) });
+    } else {
+      setStatus('Unexpected error.');
+      show({ error: 'UPLOAD_ERROR', detail: String(err) });
+    }
+  }
+}
+
+async function handleTranslate() {
+  if (!transcript) {
+    setStatus("No transcript provided");
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('transcript', transcript);
+
+  const controller = new AbortController();
+  const to = setTimeout(() => controller.abort('timeout'), 30000);
+
+  setStatus("Translating...");
+  try {
+    const resp = await fetch("{% url 'translate_audio' %}", {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: fd,
+      credentials: 'same-origin',
+      signal: controller.signal
+    });
+    clearTimeout(to);
+
+    const data = await resp.json().catch(() => null);
+
+    if (!resp.ok) {
+      setStatus('Translation failed.');
+      show(data || { error: `${resp.status} ${resp.statusText}` });
+      return;
+    }
+
+    setStatus('Translation Complete');
+    show(data);
+
+    // 🔊 Automatically play translated audio if available
+    if (data.audio_url) {
+      try {
+        const audio = new Audio(data.audio_url);
+        audio.play()
+          .then(() => console.log("Playing translated audio"))
+          .catch(err => console.error("Audio playback failed:", err));
+
+        // Also add a visible player so user can replay
+        ui.result.innerHTML += `
+          <br><br><strong>Play Translated Audio:</strong><br>
+          <audio controls src="${data.audio_url}" style="margin-top:8px; width: 100%; max-width: 400px;"></audio>
+        `;
+      } catch (err) {
+        console.error("Error initializing audio:", err);
+      }
+    }
+
+    transcript = null;
+
+  } catch(err) {
+    clearTimeout(to);
+    const aborted = (err?.name === 'AbortError') || String(err).includes('timeout');
+    if (aborted) {
+      setStatus('Timed out waiting for server.');
+      show({ error: 'TIMEOUT', detail: String(err) });
+    } else {
+      setStatus('Unexpected error.');
+      show({ error: 'UPLOAD_ERROR', detail: String(err) });
+    }
+  }
+}
+
+ui.recBtn.onclick = async () => {
+  try {
+    await startRecording();
+    setStatus('Recording…');
+    ui.recBtn.disabled = true;
+    ui.stopBtn.disabled = false;
+  } catch (e) {
+    setStatus('Mic permission denied or unavailable.');
+    show({ error: 'MIC_ERROR', detail: String(e) });
+  }
+};
+
+ui.stopBtn.onclick = () => {
+  mediaRecorder.stop();
+  setStatus('Processing…');
+  ui.recBtn.disabled = false;
+  ui.stopBtn.disabled = true;
+};
+
+ui.transBtn.onclick = () => {
+  handleTranslate();
+};
+</script>
 {% endblock content %}

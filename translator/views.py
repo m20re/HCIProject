@@ -1,11 +1,15 @@
 import os, tempfile, subprocess
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.conf import settings
+from django.core.files.storage import default_storage
 
 from translator.service_tl import translate_text
 from translator.service_tc import transcribe_wav
+from gtts import gTTS  # <-- NEW: Google Text-to-Speech
 
 FFMPEG_TIMEOUT_SEC = 20
+
 
 @require_POST
 def upload_audio(request):
@@ -19,8 +23,7 @@ def upload_audio(request):
             tmp_in.write(chunk)
         src_path = tmp_in.name
 
-    # Convert to mono 16kHz WAV
-    # !! Requires ffmpeg program !!
+    # Convert to mono 16kHz WAV (requires ffmpeg)
     wav_path = src_path + ".wav"
     try:
         subprocess.run(
@@ -30,22 +33,13 @@ def upload_audio(request):
         )
     except subprocess.TimeoutExpired:
         _cleanup(src_path, wav_path)
-        return JsonResponse(
-            {"error": "FFMPEG_TIMEOUT", "detail": f">{FFMPEG_TIMEOUT_SEC}s"},
-            status=504
-        )
+        return JsonResponse({"error": "FFMPEG_TIMEOUT", "detail": f">{FFMPEG_TIMEOUT_SEC}s"}, status=504)
     except subprocess.CalledProcessError as e:
         _cleanup(src_path, wav_path)
-        return JsonResponse(
-            {"error": "FFMPEG_FAILED", "detail": e.stderr.decode(errors="ignore")[:500]},
-            status=422
-        )
+        return JsonResponse({"error": "FFMPEG_FAILED", "detail": e.stderr.decode(errors="ignore")[:500]}, status=422)
     except Exception as e:
         _cleanup(src_path, wav_path)
-        return JsonResponse(
-            {"error": "FFMPEG_EXCEPTION", "detail": str(e)}, 
-            status=500
-        )
+        return JsonResponse({"error": "FFMPEG_EXCEPTION", "detail": str(e)}, status=500)
 
     try:
         asr = transcribe_wav(wav_path, language=None)
@@ -64,39 +58,52 @@ def upload_audio(request):
     finally:
         _cleanup(src_path, wav_path)
 
+
 @require_POST
 async def translate_audio(request):
+    """
+    Accepts transcript text, translates it, and generates a TTS audio file
+    of the translated result.
+    """
     t = request.POST.get("transcript", "").strip()
     if not t:
-        return JsonResponse(
-            {
-                "error": "NO_TRANSCRIPT",
-                "details": "No transcript was provided",
-            },
-            status=400
-        )
-    
-    # TODO: Add dropdown for language
-    dest = request.POST.get("dest", "").strip() or "es"
-    
-    # Call GoogleTrans API
+        return JsonResponse({
+            "error": "NO_TRANSCRIPT",
+            "details": "No transcript was provided",
+        }, status=400)
+
+    dest = request.POST.get("dest", "").strip() or "es"  # default: Spanish
+
     try:
+        # --- Step 1: Translate ---
         translated = await translate_text(t, dest=dest)
-        return JsonResponse(
-            {
-                "translation": translated,
-                "target": dest,
-            },
-            status=200
-        )
+
+        # --- Step 2: Convert translated text to audio (TTS) ---
+        # Use gTTS (Google Text-to-Speech)
+        tts = gTTS(translated, lang=dest)
+
+        # Save the generated audio file into MEDIA_ROOT
+        filename = f"translation_{next(tempfile._get_candidate_names())}.mp3"
+        file_path = os.path.join(settings.MEDIA_ROOT, filename)
+        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+        tts.save(file_path)
+
+        # Build public URL
+        audio_url = f"{settings.MEDIA_URL}{filename}"
+
+        # --- Step 3: Respond with both text and audio URL ---
+        return JsonResponse({
+            "Translation": translated,
+            "target": dest,
+            "audio_url": audio_url,
+        }, status=200)
+
     except Exception as e:
-        return JsonResponse(
-            {
-                "error": "TRANSLATION_FAILED",
-                "detail": str(e),
-            },
-            status=500
-        )
+        return JsonResponse({
+            "error": "TRANSLATION_FAILED",
+            "detail": str(e),
+        }, status=500)
+
 
 def _cleanup(*paths):
     for p in paths:
@@ -105,4 +112,3 @@ def _cleanup(*paths):
                 os.remove(p)
         except Exception:
             pass
-
