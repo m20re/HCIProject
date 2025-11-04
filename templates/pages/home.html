@@ -158,7 +158,7 @@ async function handleTranslate() {
     setStatus('Translation Complete');
     show(data);
 
-    // Automatically play translated audio if available
+    //git Automatically play translated audio if available
     if (data.audio_url) {
       try {
         const audio = new Audio(data.audio_url);
