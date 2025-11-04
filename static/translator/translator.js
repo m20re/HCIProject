@@ -8,7 +8,6 @@ function setStatus(msg) {
 }
 
 function setTranscript(text) {
-  // Prefer a dedicated transcript box; fall back to translatedText if not present
   const el = document.getElementById('transcriptText') || document.getElementById('translatedText');
   if (el) el.textContent = text || '';
 }
@@ -25,42 +24,11 @@ function setTranslation(text) {
 function pickTranslation(payload) {
   if (!payload) return '';
 
-  // Fast path: common flat keys (case-insensitive)
-  const flat = payload;
-  if (typeof flat.translation === 'string') return flat.translation;
-  if (typeof flat.translated === 'string') return flat.translated;
-  if (typeof flat.text === 'string') return flat.text;
-  if (typeof flat.translatedText === 'string') return flat.translatedText;
-  if (typeof flat.Translation === 'string') return flat.Translation; // capital T from some backends
-
-  // Case-insensitive scan of top-level keys as a fallback
-  for (const [k, v] of Object.entries(flat)) {
-    if (typeof v === 'string' && /^(translation|translatedtext|translated|text)$/i.test(k)) {
-      return v;
-    }
-  }
-
-  // Nested common shapes (case-insensitive)
-  const data = payload.data || payload.Data;
-  if (data) {
-    if (typeof data.translation === 'string') return data.translation;
-    if (typeof data.translatedText === 'string') return data.translatedText;
-    if (typeof data.Translation === 'string') return data.Translation;
-    for (const [k, v] of Object.entries(data)) {
-      if (typeof v === 'string' && /^(translation|translatedtext|translated|text)$/i.test(k)) return v;
-    }
-    const translations = data.translations || data.Translations;
-    if (Array.isArray(translations) && translations[0]) {
-      const t = translations[0];
-      if (typeof t.translatedText === 'string') return t.translatedText;
-      if (typeof t.Translation === 'string') return t.Translation;
-      if (typeof t.text === 'string') return t.text;
-      for (const [k, v] of Object.entries(t)) {
-        if (typeof v === 'string' && /^(translation|translatedtext|translated|text)$/i.test(k)) return v;
-      }
-    }
-  }
-
+  if (typeof payload.translation === 'string') return payload.translation;
+  if (typeof payload.Translation === 'string') return payload.Translation;
+  if (typeof payload.translatedText === 'string') return payload.translatedText;
+  if (payload.data?.translation) return payload.data.translation;
+  if (payload.data?.translations?.[0]?.translatedText) return payload.data.translations[0].translatedText;
   return '';
 }
 
@@ -84,36 +52,38 @@ function show(data) {
 }
 
 function getCsrfToken() {
-  // Try cookie first (Django default)
   const m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
   if (m) return decodeURIComponent(m[1]);
-  // Fallback to a meta tag if you add one later
   const meta = document.querySelector('meta[name="csrf-token"]');
   return meta ? meta.getAttribute('content') : '';
 }
 
 async function startRecording() {
-  // Prompt for Microphone permission
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-  // Gets proper MIME type depending on browser
   const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
     ? 'audio/webm;codecs=opus'
     : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
 
   mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
-  // Clears chunks in case a previous recording occured
   chunks = [];
-  // Continually push new data to chunks while recording
   mediaRecorder.ondataavailable = e => chunks.push(e.data);
-
   mediaRecorder.onstop = handleStop;
   mediaRecorder.start();
+
   setStatus('Recording…');
+
   const startBtn = document.getElementById('translateBtn');
   const stopBtn = document.getElementById('stopBtn');
   if (startBtn) startBtn.disabled = true;
   if (stopBtn) stopBtn.disabled = false;
+
+  // 🔹 Automatically stop after 45 seconds
+  setTimeout(() => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      stopRecording();
+    }
+  }, 45000);
 }
 
 function stopRecording() {
@@ -138,18 +108,15 @@ async function handleStop() {
   if (startBtn) startBtn.disabled = false;
   if (stopBtn) stopBtn.disabled = true;
 
-  // Refuses audio shorter than 8KB
   if (blob.size < 8 * 1024) {
     setStatus('Recording too short or silent, record at least 1-2 seconds');
     return;
   }
 
-  // Prepares API call to views
   const fd = new FormData();
   const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
   fd.append('audio', blob, `clip.${ext}`);
 
-  // 45s client timeout
   const controller = new AbortController();
   const to = setTimeout(() => controller.abort('timeout'), 45000);
 
@@ -164,8 +131,7 @@ async function handleStop() {
     });
     clearTimeout(to);
 
-    let data;
-    try { data = await resp.json(); } catch (_) { data = null; }
+    const data = await resp.json().catch(() => null);
 
     if (!resp.ok) {
       setStatus('Upload failed.');
@@ -180,12 +146,11 @@ async function handleStop() {
     }
 
     setStatus('Done');
-    // Stash the transcript
     transcript = data?.transcript;
     setTranscript(transcript);
 
-    // Automatically translate right after a successful upload
-    try { await handleTranslate(); } catch (_) {}
+    // 🔹 Automatically start translation
+    await handleTranslate();
 
   } catch (err) {
     clearTimeout(to);
@@ -206,11 +171,9 @@ async function handleTranslate() {
     return;
   }
 
-  // create new FormData
   const fd = new FormData();
   fd.append('transcript', transcript);
 
-  // timeout
   const controller = new AbortController();
   const to = setTimeout(() => controller.abort('timeout'), 30000);
 
@@ -239,9 +202,21 @@ async function handleTranslate() {
       setStatus('Translation Complete');
       setTranslation(t);
       transcript = null;
+
+      // 🔹 NEW: Automatically play translated audio if provided
+      if (data.audio_url) {
+        try {
+          const audio = new Audio(data.audio_url);
+          await audio.play();
+          setStatus('Playing translated audio...');
+        } catch (e) {
+          console.warn("Audio playback failed:", e);
+          setStatus('Translation ready, audio unavailable.');
+        }
+      }
+
     } else {
       setStatus('No translation returned');
-      // fall back to show raw payload for visibility
       show(data || { error: 'EMPTY_TRANSLATION' });
     }
 
@@ -264,13 +239,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (startBtn) {
     startBtn.addEventListener('click', () => {
-      // reset any previous transcript
       transcript = null;
       startRecording();
     });
   }
   if (stopBtn) {
-    stopBtn.disabled = true; // disabled until recording starts
+    stopBtn.disabled = true;
     stopBtn.addEventListener('click', stopRecording);
   }
 
@@ -282,4 +256,9 @@ document.addEventListener('DOMContentLoaded', () => {
       setStatus('Ready');
     });
   }
+
+  // 🔹 Automatically start recording after 1.2 seconds when page loads
+  setTimeout(() => {
+    if (startBtn) startBtn.click();
+  }, 1200);
 });

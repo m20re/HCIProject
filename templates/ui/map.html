@@ -14,17 +14,12 @@
     {{ countriesData|json_script:"countries-data" }}
   {% endif %}
   <style>
-    /* Fallback to ensure map is visible even if external CSS fails */
     #map { height: 420px; width: 100%; }
   </style>
 </head>
 <body>
 <header class="header">
   <div class="header-inner">
-    <!-- <div class="brand">
-      <span class="brand-badge"></span>
-      Twilingo
-    </div> -->
     <nav>
       <a href="/">Home</a>
       <a href="/about">About</a>
@@ -37,7 +32,7 @@
     <h1 class="h1 m-0">Translate Anything</h1>
     <p class="lead">Step 1) Choose languages</p>
     <p class="lead">Step 2) Click on "Start Translating".</p>
-    <p class="lead">Step 3) Click on "Stop" when you are ready. (You have a limit of 45seconds)</p>
+    <p class="lead">Step 3) Click on "Stop" when you are ready. (You have a limit of 45 seconds)</p>
 
     <!-- Language controls -->
     <div class="controls">
@@ -48,7 +43,6 @@
           <option value="es">Spanish</option>
           <option value="fr">French</option>
           <option value="de">German</option>
-          <!-- add more -->
         </select>
       </div>
 
@@ -61,31 +55,28 @@
           <option value="en">English</option>
           <option value="fr">French</option>
           <option value="de">German</option>
-          <!-- add more -->
         </select>
       </div>
     </div>
 
     <!-- Text areas -->
-<!-- First language (source) -->
-<label class="label">Your speech (source)</label>
-<div id="transcriptText" class="textarea" style="min-height:4rem;"></div>
+    <label class="label">Your speech (source)</label>
+    <div id="transcriptText" class="textarea" style="min-height:4rem;"></div>
 
-<!-- Second language (target) -->
-<label class="label" style="margin-top:.75rem;">Translation (target)</label>
-<div id="translatedText" class="textarea" style="min-height:4rem;"></div>
+    <label class="label" style="margin-top:.75rem;">Translation (target)</label>
+    <div id="translatedText" class="textarea" style="min-height:4rem;"></div>
 
     <div class="actions">
       <button class="btn btn-primary" id="translateBtn">
-        <i class="fa-solid fa-play"></i>
-        Start Translating</button>
+        <i class="fa-solid fa-play"></i> Start Translating
+      </button>
       <button class="btn btn-ghost" id="stopBtn">Stop</button>
       <button class="btn btn-ghost" id="clearTextarea">Clear</button>
       <p id="status" class="lead" style="margin-top:.5rem">Ready</p>
     </div>
   </section>
 
-  <!-- Map card (if you’re showing a map) -->
+  <!-- Map -->
   <section class="card pad">
     <h2 class="h2 m-0">Map</h2>
     <div id="map"></div>
@@ -93,22 +84,51 @@
 </main>
 
 <script>
-  // swap selected languages
-  const swap = document.getElementById('swapLangs');
-  const fromSel = document.getElementById('fromLang');
-  const toSel = document.getElementById('toLang');
+window.API = {
+  uploadAudioUrl: "{% url 'upload_audio' %}",
+  translateAudioUrl: "{% url 'translate_audio' %}"
+};
+</script>
+<script src="{% static 'translator/translator.js' %}"></script>
 
-  swap?.addEventListener('click', () => {
-    const temp = fromSel.value;
-    fromSel.value = toSel.value;
-    toSel.value = temp;
-  });
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const recBtn = document.getElementById("translateBtn");
+  const stopBtn = document.getElementById("stopBtn");
 
+  // automatically click "Start Translating" after 1s
+  setTimeout(() => recBtn.click(), 1000);
+
+  // automatically stop recording after 7 seconds (adjust as needed)
+  setTimeout(() => stopBtn.click(), 8000);
+});
+
+// 🔊 Automatically play translated audio when translation completes
+// Hook into global event from translator.js (it calls show(data))
+window.addEventListener("translationComplete", (e) => {
+  const data = e.detail;
+  if (data && data.audio_url) {
+    try {
+      const audio = new Audio(data.audio_url);
+      audio.play()
+        .then(() => console.log("Playing translated audio automatically"))
+        .catch(err => console.warn("Audio playback failed:", err));
+
+      const translatedText = document.getElementById("translatedText");
+      translatedText.innerHTML += `
+        <br><br><strong>Translated Audio:</strong><br>
+        <audio controls src="${data.audio_url}" style="width:100%;max-width:400px;"></audio>
+      `;
+    } catch (err) {
+      console.error("Error initializing translated audio:", err);
+    }
+  }
+});
+</script>
+
+<script>
   // map setup
   document.addEventListener('DOMContentLoaded', () => {
-    const mapEl = document.getElementById('map');
-    if (!mapEl) return;
-
     const map = L.map('map').setView([0, 0], 2);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -116,78 +136,36 @@
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    // get current location
     map.locate({ setView: true, maxZoom: 16 });
 
     map.on('locationfound', (e) => {
-      L.marker(e.latlng)
-        .addTo(map)
-        .bindPopup('You are here!')
-        .openPopup();
+      L.marker(e.latlng).addTo(map).bindPopup('You are here!').openPopup();
     });
 
     map.on('locationerror', () => {
-      alert("Couldn't get your location, showing default view.");
       map.setView([41.2565, -95.9345], 12);
     });
 
-    // Read countries data safely from json_script (if present)
     const countries = (() => {
       const el = document.getElementById('countries-data');
       if (!el) return [];
-      try {
-        return JSON.parse(el.textContent);
-      } catch (err) {
-        console.error('Invalid countriesData JSON:', err);
-        return [];
-      }
+      try { return JSON.parse(el.textContent); }
+      catch { return []; }
     })();
 
-    // Add markers for each country
-    countries.forEach(country => {
-      const lat = country.lat ?? country.latitude;
-      const lon = country.lon ?? country.longitude ?? country.lng;
+    countries.forEach(c => {
+      const lat = c.lat ?? c.latitude, lon = c.lon ?? c.longitude ?? c.lng;
       if (typeof lat !== 'number' || typeof lon !== 'number') return;
-
-      // languages can be ["en","es"] or [{name:"English"}, ...]
-      const langs = Array.isArray(country.languages)
-        ? country.languages.map(l => (typeof l === 'string' ? l : (l.name || l.code || ''))).filter(Boolean).join(', ')
+      const langs = Array.isArray(c.languages)
+        ? c.languages.map(l => (typeof l === 'string' ? l : (l.name || l.code || ''))).join(', ')
         : '';
-
-      const iso = country.iso2 || country.iso || '';
-      const popupContent = `
-        <strong>${country.name || 'Unknown'}${iso ? ` (${iso})` : ''}</strong><br>
-        ${langs ? `Languages: ${langs}` : ''}
-      `;
-
-      L.marker([lat, lon]).addTo(map).bindPopup(popupContent.trim());
+      const iso = c.iso2 || c.iso || '';
+      const popup = `<strong>${c.name || 'Unknown'}${iso ? ` (${iso})` : ''}</strong><br>${langs ? `Languages: ${langs}` : ''}`;
+      L.marker([lat, lon]).addTo(map).bindPopup(popup.trim());
     });
 
-
-    // Clear button logic
-    const clearBtn = document.getElementById('clearTextarea');
-    const sourceText = document.getElementById('sourceText');
-    const translatedText = document.getElementById('translatedText');
-
-    clearBtn?.addEventListener('click', () => {
-      sourceText.value = '';
-      translatedText.textContent = 'Your translation will appear here…';
-    });
-
-
-    // fix sizing if layout loads late
     setTimeout(() => map.invalidateSize(), 300);
   });
-
-
 </script>
-<script>
-  window.API = {
-    uploadAudioUrl: "{% url 'upload_audio' %}",
-    translateAudioUrl: "{% url 'translate_audio' %}"
-  };
-</script>
-<script src="{% static 'translator/translator.js' %}"></script>
-
 </body>
 </html>

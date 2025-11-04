@@ -7,6 +7,9 @@ from django.core.files.storage import default_storage
 from translator.service_tl import translate_text
 from translator.service_tc import transcribe_wav
 from gtts import gTTS  # <-- NEW: Google Text-to-Speech
+from asgiref.sync import sync_to_async
+from django.views.decorators.csrf import csrf_exempt
+import asyncio
 
 FFMPEG_TIMEOUT_SEC = 20
 
@@ -59,51 +62,47 @@ def upload_audio(request):
         _cleanup(src_path, wav_path)
 
 
+
 @require_POST
-async def translate_audio(request):
-    """
-    Accepts transcript text, translates it, and generates a TTS audio file
-    of the translated result.
-    """
+def translate_audio(request):
     t = request.POST.get("transcript", "").strip()
     if not t:
-        return JsonResponse({
-            "error": "NO_TRANSCRIPT",
-            "details": "No transcript was provided",
-        }, status=400)
+        return JsonResponse(
+            {"error": "NO_TRANSCRIPT", "details": "No transcript was provided"},
+            status=400,
+        )
 
-    dest = request.POST.get("dest", "").strip() or "es"  # default: Spanish
+    dest = request.POST.get("dest", "").strip() or "es"
 
     try:
-        # --- Step 1: Translate ---
-        translated = await translate_text(t, dest=dest)
+        translated = asyncio.run(translate_text(t, dest=dest))
 
-        # --- Step 2: Convert translated text to audio (TTS) ---
-        # Use gTTS (Google Text-to-Speech)
-        tts = gTTS(translated, lang=dest)
+        # Optional: Create TTS audio of translated text
+        import tempfile, os
+        from gtts import gTTS
+        from django.conf import settings
 
-        # Save the generated audio file into MEDIA_ROOT
-        filename = f"translation_{next(tempfile._get_candidate_names())}.mp3"
-        file_path = os.path.join(settings.MEDIA_ROOT, filename)
-        os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
-        tts.save(file_path)
+        temp_dir = os.path.join(settings.MEDIA_ROOT, "translated_audio")
+        os.makedirs(temp_dir, exist_ok=True)
+        audio_path = os.path.join(temp_dir, f"translated_{os.getpid()}.mp3")
 
-        # Build public URL
-        audio_url = f"{settings.MEDIA_URL}{filename}"
+        gTTS(translated, lang=dest).save(audio_path)
+        audio_url = settings.MEDIA_URL + f"translated_audio/{os.path.basename(audio_path)}"
 
-        # --- Step 3: Respond with both text and audio URL ---
-        return JsonResponse({
-            "Translation": translated,
-            "target": dest,
-            "audio_url": audio_url,
-        }, status=200)
+        return JsonResponse(
+            {
+                "Translation": translated,
+                "target": dest,
+                "audio_url": audio_url,  # 👈 returned to JS for playback
+            },
+            status=200,
+        )
 
     except Exception as e:
-        return JsonResponse({
-            "error": "TRANSLATION_FAILED",
-            "detail": str(e),
-        }, status=500)
-
+        return JsonResponse(
+            {"error": "TRANSLATION_FAILED", "detail": str(e)},
+            status=500,
+        )
 
 def _cleanup(*paths):
     for p in paths:
