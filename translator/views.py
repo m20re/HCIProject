@@ -1,4 +1,6 @@
-import os, tempfile, subprocess
+import os
+import tempfile
+import subprocess
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.conf import settings
@@ -6,10 +8,9 @@ from django.core.files.storage import default_storage
 
 from translator.service_tl import translate_text
 from translator.service_tc import transcribe_wav
-from gtts import gTTS  # <-- NEW: Google Text-to-Speech
-from asgiref.sync import sync_to_async
+from gtts import gTTS  # Google Text-to-Speech
+from asgiref.sync import async_to_sync
 from django.views.decorators.csrf import csrf_exempt
-import asyncio
 
 FFMPEG_TIMEOUT_SEC = 20
 
@@ -62,7 +63,6 @@ def upload_audio(request):
         _cleanup(src_path, wav_path)
 
 
-
 @require_POST
 def translate_audio(request):
     t = request.POST.get("transcript", "").strip()
@@ -75,13 +75,10 @@ def translate_audio(request):
     dest = request.POST.get("dest", "").strip() or "es"
 
     try:
-        translated = asyncio.run(translate_text(t, dest=dest))
+        # ⚡ FIX: replace asyncio.run with async_to_sync
+        translated = async_to_sync(translate_text)(t, dest=dest)
 
         # Optional: Create TTS audio of translated text
-        import tempfile, os
-        from gtts import gTTS
-        from django.conf import settings
-
         temp_dir = os.path.join(settings.MEDIA_ROOT, "translated_audio")
         os.makedirs(temp_dir, exist_ok=True)
         audio_path = os.path.join(temp_dir, f"translated_{os.getpid()}.mp3")
@@ -93,7 +90,7 @@ def translate_audio(request):
             {
                 "Translation": translated,
                 "target": dest,
-                "audio_url": audio_url,  # 👈 returned to JS for playback
+                "audio_url": audio_url,  # returned to JS for playback
             },
             status=200,
         )
@@ -103,6 +100,7 @@ def translate_audio(request):
             {"error": "TRANSLATION_FAILED", "detail": str(e)},
             status=500,
         )
+
 
 def _cleanup(*paths):
     for p in paths:
