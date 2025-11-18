@@ -243,8 +243,13 @@ async function handleTranslate() {
     return;
   }
 
+  // hard select the destination
+  const toLangSelect = document.getElementById('toLang');
+  const targetLang = toLangSelect ? toLangSelect.value : 'es';
+
   const fd = new FormData();
   fd.append('transcript', transcript);
+  fd.append('dest', targetLang);
 
   const controller = new AbortController();
   const to = setTimeout(() => controller.abort('timeout'), 30000);

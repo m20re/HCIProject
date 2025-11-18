@@ -71,12 +71,11 @@ def translate_audio(request):
             {"error": "NO_TRANSCRIPT", "details": "No transcript was provided"},
             status=400,
         )
-
     dest = request.POST.get("dest", "").strip() or "es"
 
     try:
         # ⚡ FIX: replace asyncio.run with async_to_sync
-        translated = async_to_sync(translate_text)(t, dest=dest)
+        translated = translate_text(t, dest=dest)
 
         # Optional: Create TTS audio of translated text
         temp_dir = os.path.join(settings.MEDIA_ROOT, "translated_audio")
