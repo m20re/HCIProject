@@ -150,6 +150,33 @@ document.addEventListener('DOMContentLoaded', () => {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
+    const languageCodeMap = {
+    // English variations
+    'english': 'en',
+    'spanish': 'es',
+    // TODO: Add more language aliases, options
+    'espanol': 'es',
+    'french': 'fr',
+    'german': 'de',
+  };
+
+  /**
+   * Helper function that reads toLang HTML element
+   */
+  function setTargetLanguage(langName) {
+    const toSel = document.getElementById('toLang');
+    if (!toSel) return;
+
+    const isoCode = languageCodeMap[langName.toLowerCase()] || null;
+    if (isoCode) {
+      toSel.value = isoCode;
+      console.log(`Target language switched to ${langName} (${isoCode})`);
+    } else {
+      console.warn(`No mapping found for language: ${langName}`);
+    }
+  }
+
+
   // Load all countries from the local JSON file and display them on the map
   fetch("{% static 'ui/countryLang.json' %}")
     .then(res => res.json())
@@ -169,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Build languages text
         let langsText = '';
 
+        // Essentially extracts languages from a wide variety of formats
         if (Array.isArray(c.languages)) {
           langsText = c.languages
             .map(l => (typeof l === 'string' ? l : (l.name || l.code || '')))
@@ -194,7 +222,18 @@ document.addEventListener('DOMContentLoaded', () => {
           ${langsText ? `Language(s): ${langsText}` : 'Language(s): N/A'}
         `;
 
-        L.marker([lat, lon]).addTo(map).bindPopup(popupText);
+        // Sets map markers
+        L.marker([lat, lon])
+          .addTo(map)
+          .bindPopup(popupText)
+          // when a map marker is clicked...
+          .on('click', () => {
+            if(!langsText) return;
+
+            // Get the primary listed language
+            const primaryLang = langsText.split(',')[0].trim();
+            setTargetLanguage(primaryLang);
+          });
       });
     })
     .catch(err => {
