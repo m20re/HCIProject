@@ -1,9 +1,12 @@
-# service_tl.py  (replace current contents)
-from googletrans import Translator
+# service_tl.py (Alternative using deep-translator)
+# Install: pip install deep-translator
+from deep_translator import GoogleTranslator
 
-translator = Translator(service_urls=['translate.googleapis.com'])
-
-async def translate_text(t: str, dest: str = "es") -> str:
-    result = await translator.translate(t, dest=dest)
-    return result.text
-
+def translate_text(t: str, dest: str) -> str:
+    """
+    Synchronous translation using deep-translator.
+    Returns translated text as a string.
+    """
+    translator = GoogleTranslator(source='auto', target=dest)
+    result = translator.translate(t)
+    return result
