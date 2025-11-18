@@ -125,9 +125,7 @@ window.addEventListener("translationComplete", (e) => {
   }
 });
 </script>
-
 <script>
-  // map setup
   document.addEventListener('DOMContentLoaded', () => {
     const map = L.map('map').setView([0, 0], 2);
 
@@ -136,35 +134,120 @@ window.addEventListener("translationComplete", (e) => {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    map.locate({ setView: true, maxZoom: 16 });
+    // Load all countries from the local JSON file and display them on the map
+    fetch("{% static 'ui/countryLang.json' %}")
+      .then(res => res.json())
+      .then(data => {
+        window.countries = data || [];
+
+        window.countries.forEach(c => {
+          let lat = c.lat ?? c.latitude;
+          let lon = c.lon ?? c.longitude ?? c.lng;
+
+          // Convert string coordinates to numbers if needed
+          if (typeof lat === 'string') lat = parseFloat(lat);
+          if (typeof lon === 'string') lon = parseFloat(lon);
+
+          if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return;
+
+          // Build languages text
+          let langsText = '';
+
+          if (Array.isArray(c.languages)) {
+            langsText = c.languages
+              .map(l => (typeof l === 'string' ? l : (l.name || l.code || '')))
+              .filter(Boolean)
+              .join(', ');
+          } else if (typeof c.languages === 'string') {
+            langsText = c.languages;
+          } else if (c.languages && typeof c.languages === 'object') {
+            langsText = Object.values(c.languages)
+              .filter(v => typeof v === 'string' && v.trim().length > 0)
+              .join(', ');
+          } else if (typeof c.language === 'string') {
+            langsText = c.language;
+          } else if (typeof c.lang === 'string') {
+            langsText = c.lang;
+          } else if (typeof c.Language === 'string') {
+            langsText = c.Language;
+          }
+
+          const countryName = c.name || c.country || 'Unknown country';
+          const popupText = `
+            <strong>${countryName}</strong><br>
+            ${langsText ? `Language(s): ${langsText}` : 'Language(s): N/A'}
+          `;
+
+          L.marker([lat, lon]).addTo(map).bindPopup(popupText);
+        });
+      })
+      .catch(err => {
+        console.error("Error loading countryLang.json:", err);
+      });
+
+    // Try to locate the user and show "You are here" + nearest country/language
+    map.locate({ setView: true, maxZoom: 8 });
 
     map.on('locationfound', (e) => {
-      L.marker(e.latlng).addTo(map).bindPopup('You are here!').openPopup();
+      const countries = window.countries || [];
+
+      const userLat = e.latlng.lat;
+      const userLon = e.latlng.lng;
+
+      let closestCountry = null;
+      let closestDist = Infinity;
+
+      countries.forEach(c => {
+        let lat = c.lat ?? c.latitude;
+        let lon = c.lon ?? c.longitude ?? c.lng;
+
+        // Convert string coordinates to numbers if needed
+        if (typeof lat === 'string') lat = parseFloat(lat);
+        if (typeof lon === 'string') lon = parseFloat(lon);
+
+        if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return;
+
+        const dLat = lat - userLat;
+        const dLon = lon - userLon;
+        const distSq = dLat * dLat + dLon * dLon;
+
+        if (distSq < closestDist) {
+          closestDist = distSq;
+          closestCountry = c;
+        }
+      });
+
+      console.log('Closest country detected:', closestCountry);
+
+      let langsText = '';
+
+      if (closestCountry) {
+        if (Array.isArray(closestCountry.languages)) {
+          langsText = closestCountry.languages
+            .map(l => (typeof l === 'string' ? l : (l.name || l.code || '')))
+            .filter(Boolean)
+            .join(', ');
+        } else if (typeof closestCountry.languages === 'string') {
+          langsText = closestCountry.languages;
+        } else if (closestCountry.languages && typeof closestCountry.languages === 'object') {
+          langsText = Object.values(closestCountry.languages)
+            .filter(v => typeof v === 'string' && v.trim().length > 0)
+            .join(', ');
+        } else if (typeof closestCountry.language === 'string') {
+          langsText = closestCountry.language;
+        } else if (typeof closestCountry.lang === 'string') {
+          langsText = closestCountry.lang;
+        } else if (typeof closestCountry.Language === 'string') {
+          langsText = closestCountry.Language;
+        }
+      }
+
+      const popupText = langsText && langsText.trim().length > 0
+        ? `You are here!<br>Language(s): ${langsText}`
+        : 'You are here!';
+
+      L.marker(e.latlng).addTo(map).bindPopup(popupText).openPopup();
     });
-
-    map.on('locationerror', () => {
-      map.setView([41.2565, -95.9345], 12);
-    });
-
-    const countries = (() => {
-      const el = document.getElementById('countries-data');
-      if (!el) return [];
-      try { return JSON.parse(el.textContent); }
-      catch { return []; }
-    })();
-
-    countries.forEach(c => {
-      const lat = c.lat ?? c.latitude, lon = c.lon ?? c.longitude ?? c.lng;
-      if (typeof lat !== 'number' || typeof lon !== 'number') return;
-      const langs = Array.isArray(c.languages)
-        ? c.languages.map(l => (typeof l === 'string' ? l : (l.name || l.code || ''))).join(', ')
-        : '';
-      const iso = c.iso2 || c.iso || '';
-      const popup = `<strong>${c.name || 'Unknown'}${iso ? ` (${iso})` : ''}</strong><br>${langs ? `Languages: ${langs}` : ''}`;
-      L.marker([lat, lon]).addTo(map).bindPopup(popup.trim());
-    });
-
-    setTimeout(() => map.invalidateSize(), 300);
   });
 </script>
 </body>

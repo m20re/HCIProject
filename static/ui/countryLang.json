@@ -1,0 +1,152 @@
+[
+    {
+      "name": "United States",
+      "lat": 37.0902,
+      "lng": -95.7129,
+      "languages": ["English"]
+    },
+    {
+      "name": "Canada",
+      "lat": 56.1304,
+      "lng": -106.3468,
+      "languages": ["English", "French"]
+    },
+    {
+      "name": "Mexico",
+      "lat": 23.6345,
+      "lng": -102.5528,
+      "languages": ["Spanish"]
+    },
+    {
+      "name": "Guatemala",
+      "lat": 15.7835,
+      "lng": -90.2308,
+      "languages": ["Spanish"]
+    },
+    {
+      "name": "Brazil",
+      "lat": -14.235,
+      "lng": -51.9253,
+      "languages": ["Portuguese"]
+    },
+    {
+      "name": "Argentina",
+      "lat": -38.4161,
+      "lng": -63.6167,
+      "languages": ["Spanish"]
+    },
+    {
+      "name": "United Kingdom",
+      "lat": 55.3781,
+      "lng": -3.436,
+      "languages": ["English"]
+    },
+    {
+      "name": "France",
+      "lat": 46.2276,
+      "lng": 2.2137,
+      "languages": ["French"]
+    },
+    {
+      "name": "Germany",
+      "lat": 51.1657,
+      "lng": 10.4515,
+      "languages": ["German"]
+    },
+    {
+      "name": "Spain",
+      "lat": 40.4637,
+      "lng": -3.7492,
+      "languages": ["Spanish"]
+    },
+    {
+      "name": "Italy",
+      "lat": 41.8719,
+      "lng": 12.5674,
+      "languages": ["Italian"]
+    },
+    {
+      "name": "Portugal",
+      "lat": 39.3999,
+      "lng": -8.2245,
+      "languages": ["Portuguese"]
+    },
+    {
+      "name": "Netherlands",
+      "lat": 52.1326,
+      "lng": 5.2913,
+      "languages": ["Dutch"]
+    },
+    {
+      "name": "Sweden",
+      "lat": 60.1282,
+      "lng": 18.6435,
+      "languages": ["Swedish"]
+    },
+    {
+      "name": "Norway",
+      "lat": 60.472,
+      "lng": 8.4689,
+      "languages": ["Norwegian"]
+    },
+    {
+      "name": "Russia",
+      "lat": 61.524,
+      "lng": 105.3188,
+      "languages": ["Russian"]
+    },
+    {
+      "name": "China",
+      "lat": 35.8617,
+      "lng": 104.1954,
+      "languages": ["Chinese (Mandarin)"]
+    },
+    {
+      "name": "Japan",
+      "lat": 36.2048,
+      "lng": 138.2529,
+      "languages": ["Japanese"]
+    },
+    {
+      "name": "South Korea",
+      "lat": 35.9078,
+      "lng": 127.7669,
+      "languages": ["Korean"]
+    },
+    {
+      "name": "India",
+      "lat": 20.5937,
+      "lng": 78.9629,
+      "languages": ["Hindi", "English"]
+    },
+    {
+      "name": "Australia",
+      "lat": -25.2744,
+      "lng": 133.7751,
+      "languages": ["English"]
+    },
+    {
+      "name": "South Africa",
+      "lat": -30.5595,
+      "lng": 22.9375,
+      "languages": ["Zulu", "Xhosa", "Afrikaans", "English"]
+    },
+    {
+      "name": "Egypt",
+      "lat": 26.8206,
+      "lng": 30.8025,
+      "languages": ["Arabic"]
+    },
+    {
+      "name": "Nigeria",
+      "lat": 9.082,
+      "lng": 8.6753,
+      "languages": ["English", "Hausa", "Yoruba", "Igbo"]
+    },
+    {
+      "name": "Saudi Arabia",
+      "lat": 23.8859,
+      "lng": 45.0792,
+      "languages": ["Arabic"]
+    }
+  ]
