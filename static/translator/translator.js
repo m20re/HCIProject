@@ -2,14 +2,15 @@ let mediaRecorder;
 let chunks = [];
 let transcript = null;
 
-// 🔊 Silence detection
 let silenceTimer = null;
 let audioContext = null;
 let analyser = null;
 let dataArray = null;
 
-// 🚫 Manual stop flag (user clicked Stop button)
+
 let manualStop = false;
+
+
 
 function setStatus(msg) {
   const el = document.getElementById('status');
@@ -67,20 +68,63 @@ function getCsrfToken() {
   return meta ? meta.getAttribute('content') : '';
 }
 
-/* -------------------------------------------------------------------------- */
-/*                            START RECORDING (NEW)                           */
-/* -------------------------------------------------------------------------- */
+
+const LANGUAGE_KEYWORDS = {
+  english: "en",
+  spanish: "es",
+  german: "de",
+  french: "fr",
+  japanese: "ja",
+  chinese: "zh",
+  korean: "ko",
+  italian: "it",
+  portuguese: "pt",
+  russian: "ru"
+};
+
+function detectLanguageCommand(text) {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+
+  const patterns = [
+    /switch to ([a-z]+)/,
+    /translate to ([a-z]+)/,
+    /change language to ([a-z]+)/,
+    /set language to ([a-z]+)/,
+    /([a-z]+) mode$/
+  ];
+
+  for (const pat of patterns) {
+    const m = lower.match(pat);
+    if (m && m[1]) {
+      const langName = m[1].trim().toLowerCase();
+      if (LANGUAGE_KEYWORDS[langName]) {
+        return LANGUAGE_KEYWORDS[langName];
+      }
+    }
+  }
+
+  return null;
+}
+
+function applyLanguageChange(code) {
+  const select = document.getElementById("toLang");
+  if (!select) return;
+  select.value = code;
+  setStatus("Language switched to " + code.toUpperCase());
+}
+
 
 async function startRecording() {
-  manualStop = false;   // Reset stop flag for new recording cycle
-  if (silenceTimer) {   // Clear any leftover silence timer
+  manualStop = false;
+  if (silenceTimer) {
     clearTimeout(silenceTimer);
     silenceTimer = null;
   }
 
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-  /* ----------------------- Silence Detection Setup ----------------------- */
+  // Silence detection setup
   audioContext = new AudioContext();
   const source = audioContext.createMediaStreamSource(stream);
   analyser = audioContext.createAnalyser();
@@ -91,7 +135,6 @@ async function startRecording() {
   function checkSilence() {
     analyser.getByteTimeDomainData(dataArray);
 
-    // RMS loudness
     let sum = 0;
     for (let i = 0; i < dataArray.length; i++) {
       const v = (dataArray[i] - 128) / 128;
@@ -99,13 +142,13 @@ async function startRecording() {
     }
     const rms = Math.sqrt(sum / dataArray.length);
 
-    const SILENCE_THRESHOLD = 0.015;  // microphone-dependent
-    const SILENCE_TIMEOUT = 3000;     // 3 seconds
+    const SILENCE_THRESHOLD = 0.015;
+    const SILENCE_TIMEOUT = 3000;
 
     if (rms < SILENCE_THRESHOLD) {
       if (!silenceTimer) {
         silenceTimer = setTimeout(() => {
-          stopRecording(); // silence-triggered stop
+          stopRecording();
         }, SILENCE_TIMEOUT);
       }
     } else {
@@ -120,7 +163,6 @@ async function startRecording() {
 
   requestAnimationFrame(checkSilence);
 
-  /* -------------------------- Media Recorder ----------------------------- */
   const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
     ? 'audio/webm;codecs=opus'
     : (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '');
@@ -141,7 +183,7 @@ async function startRecording() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                             STOP RECORDING (NEW)                           */
+/*                               STOP RECORDING                                */
 /* -------------------------------------------------------------------------- */
 
 function stopRecording() {
@@ -161,9 +203,6 @@ function stopRecording() {
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                   FINISH                                   */
-/* -------------------------------------------------------------------------- */
 
 async function handleStop() {
   if (!chunks.length) {
@@ -181,7 +220,7 @@ async function handleStop() {
   if (stopBtn) stopBtn.disabled = true;
 
   if (blob.size < 8 * 1024) {
-    setStatus('Recording too short or silent, record at least 1-2 seconds');
+    setStatus('Recording too short or silent.');
     return;
   }
 
@@ -193,6 +232,7 @@ async function handleStop() {
   const to = setTimeout(() => controller.abort('timeout'), 45000);
 
   setStatus('Uploading…');
+
   try {
     const resp = await fetch((window.API && window.API.uploadAudioUrl) || '/upload_audio', {
       method: 'POST',
@@ -211,17 +251,22 @@ async function handleStop() {
       return;
     }
 
-    if (data?.code === 'NO_TRANSCRIPT') {
-      setStatus('No speech detected.');
-      show(data);
-      return;
-    }
-
-    setStatus('Done');
     transcript = data?.transcript;
     setTranscript(transcript);
 
-    // Auto translate
+    /* -------------------------------------------------- */
+    /* 🔍 VOICE COMMAND CHECK (STOP TRANSLATION)          */
+    /* -------------------------------------------------- */
+    const newLang = detectLanguageCommand(transcript);
+    if (newLang) {
+      applyLanguageChange(newLang);
+      transcript = null;
+
+      setTimeout(() => startRecording(), 800);
+      return;
+    }
+
+    // Otherwise translate normally
     await handleTranslate();
 
   } catch (err) {
@@ -237,13 +282,13 @@ async function handleStop() {
   }
 }
 
+
 async function handleTranslate() {
   if (!transcript) {
     setStatus("No transcript provided");
     return;
   }
 
-  // hard select the destination
   const toLangSelect = document.getElementById('toLang');
   const targetLang = toLangSelect ? toLangSelect.value : 'es';
 
@@ -255,6 +300,7 @@ async function handleTranslate() {
   const to = setTimeout(() => controller.abort('timeout'), 30000);
 
   setStatus("Translating...");
+
   try {
     const resp = await fetch((window.API && window.API.translateAudioUrl) || '/translate_audio', {
       method: 'POST',
@@ -266,7 +312,6 @@ async function handleTranslate() {
     clearTimeout(to);
 
     const data = await resp.json().catch(() => null);
-    console.log('[translate] response', resp.status, data);
 
     if (!resp.ok) {
       setStatus('Translation failed.');
@@ -283,42 +328,28 @@ async function handleTranslate() {
       if (data.audio_url) {
         try {
           const audio = new Audio(data.audio_url);
-
           audio.onended = () => {
             setStatus('Translation ready');
-
-            // ✅ Add small delay before restarting recording
             if (!manualStop) {
               setTimeout(() => {
-                silenceTimer = null;   // reset leftover silence timer
+                silenceTimer = null;
                 startRecording();
-              }, 800); // 0.8s delay
+              }, 800);
             } else {
               setStatus('Stopped');
             }
           };
-
           await audio.play();
           setStatus('Playing translated audio...');
-
         } catch (e) {
-          console.warn("Audio playback failed:", e);
           setStatus('Translation ready, audio unavailable.');
-
           if (!manualStop) {
-            setTimeout(() => {
-              silenceTimer = null;
-              startRecording();
-            }, 800);
+            setTimeout(() => startRecording(), 800);
           }
         }
-
       } else {
         if (!manualStop) {
-          setTimeout(() => {
-            silenceTimer = null;
-            startRecording();
-          }, 800);
+          setTimeout(() => startRecording(), 800);
         }
       }
 
@@ -327,7 +358,7 @@ async function handleTranslate() {
       show(data || { error: 'EMPTY_TRANSLATION' });
     }
 
-  } catch(err) {
+  } catch (err) {
     clearTimeout(to);
     const aborted = (err?.name === 'AbortError') || String(err).includes('timeout');
     if (aborted) {
@@ -339,6 +370,7 @@ async function handleTranslate() {
     }
   }
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
   const startBtn = document.getElementById('translateBtn');
@@ -354,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (stopBtn) {
     stopBtn.disabled = true;
     stopBtn.addEventListener('click', () => {
-      manualStop = true;   // prevents future auto-restart
+      manualStop = true;
       stopRecording();
     });
   }

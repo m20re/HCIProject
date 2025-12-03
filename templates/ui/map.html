@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Twilingo — Map</title>
+  <title>Twilingo</title>
   <link rel="stylesheet" href="{% static 'css/style.css' %}">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -30,10 +30,15 @@
 <main class="main stack">
   <section class="card pad stack">
     <h1 class="h1 m-0">Translate Anything</h1>
-    <p class="lead">Step 1) Choose languages</p>
-    <p class="lead">Step 2) Click on "Start Translating".</p>
-    <p class="lead">Step 3) Click on "Stop" when you are ready. (You have a limit of 45 seconds)</p>
-
+    <p class="lead">Step 1) Enable microphone access and location access for the full experience.</p>
+    <p class="lead">Step 2) Choose languages. This can be done by selecting via the
+        dropdown below or clicking on a country of the
+        interactive map for output language.</p>
+    <p class="lead">NOTE: Upon microphone enabling voice recording begins immediately and will continue
+        recording until the stop button is clicked. Maximum recording time is 45 seconds with a
+        3-second timeout if no audio is detected.</p>
+    <p class="lead">Language output may also be switched via voice commands. Ex. "Switch to German"
+        will switch translation to output in German.</p>
     <!-- Language controls -->
     <div class="controls">
       <div class="lang-picker">
