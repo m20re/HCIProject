@@ -56,3 +56,10 @@ This milestone was focused on making the UI experiences more seamless by fixing 
 
 #### Bug Fixes
 - Changed `googleTrans` to `deep-translate` to avoid asynch/synch execution issues
+
+### Milestone 4
+This milestone adds the final touches and small advancements on the program.
+
+#### Changes
+- Added voice commands
+- Added small instructions within the program
