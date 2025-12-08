@@ -27,3 +27,32 @@ Verify that FFMPEG works by opening a new terminal and type `ffmpeg -version`. T
 14. You can terminate the program anytime with `CTRL + C` or `CMD + C`.
 
 ## Milestones
+### Milestone 1
+In this milestone, the general direction and overall idea of how the program will look like was established.
+
+#### Major Changes
+- Imported `lithium`, an opionontaed "scaffolding" for quick-start.
+- Created new `translator` app within Django to hold translation API logic
+- Added faster_whisper Python package to transcribe speech.
+- Added simple HTML test page for testing.
+
+### Milestone 2
+This milestone reflects further development in app functionality and establishing the front-end.
+
+#### Major Changes
+- Added translation functionality using `googletrans` package.
+- Updated testing UI to reflect TL portion of the code
+- Added and updated the front-end map UI to use translation code
+- Further Updates to the UI to extend functionality
+- Added new package `gTTS` for reading out the translated text
+- Added automatic translation after a period of time after loading the page
+
+### Milestone 3
+This milestone was focused on making the UI experiences more seamless by fixing bugs and adding new features.
+
+#### Major Changes
+- Map UI now displays languages and countries
+- Added map-clicking functionality along with language switching
+
+#### Bug Fixes
+- Changed `googleTrans` to `deep-translate` to avoid asynch/synch execution issues
